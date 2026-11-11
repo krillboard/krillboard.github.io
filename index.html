@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Krillboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700;6..12,800&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one narrow column that sinks from sunlit water to the trench; tabs on top, paste box first. */
+:root{
+  --sea-top:#0f557a;
+  --sea:#06263d;
+  --abyss:#020b15;
+  --ink:#e8f7ff;
+  --muted:#8fb5ca;
+  --glow:#5fe6f0;
+  --krill:#ff7d6e;
+  --gem:#ffd46b;
+  --card:rgba(130,205,255,.065);
+  --card-hi:rgba(130,205,255,.12);
+  --line:rgba(140,210,255,.17);
+  --bad:#ff6b81;
+  --good:#6ff0b0;
+  --t-K:#ffd46b; --t-D:#ff9f5c; --t-R:#bb92ff; --t-S:#70b8ff; --t-C:#ff9bd6; --t-P:#a6dcff; --t-X:#5c6e7c;
+  --display:"Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:var(--body); color:var(--ink); min-height:100vh;
+  background:var(--abyss);
+  background-image:linear-gradient(180deg,var(--sea-top) 0%,var(--sea) 26%,#041726 60%,var(--abyss) 100%);
+  background-attachment:fixed;
+  font-size:15px; line-height:1.45;
+}
+.bubbles{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+.bubbles span{position:absolute;bottom:-30px;border:1.5px solid rgba(180,235,255,.35);border-radius:50%;animation:rise linear infinite}
+@keyframes rise{to{transform:translateY(-110vh) translateX(20px);opacity:0}}
+@media (prefers-reduced-motion: reduce){.bubbles{display:none}}
+
+.wrap{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:22px 16px 60px;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand h1{font-family:var(--display);font-weight:700;font-size:38px;letter-spacing:.5px;margin:0;line-height:1}
+.brand h1 b{color:var(--krill);font-weight:700}
+.brand p{margin:6px 0 0;color:var(--muted);font-size:14px}
+.clock{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums}
+.clock .dive{font-family:var(--display);font-size:18px;font-weight:600}
+.clock .left{font-size:13px;color:var(--muted)}
+
+nav{display:flex;gap:6px;background:rgba(2,12,22,.45);border:1px solid var(--line);border-radius:999px;padding:5px;overflow-x:auto}
+nav a{flex:1;text-align:center;white-space:nowrap;padding:9px 14px;border-radius:999px;color:var(--muted);text-decoration:none;font-weight:700;font-size:14px}
+nav a:hover{color:var(--ink);background:var(--card)}
+nav a[aria-current="page"]{background:var(--glow);color:#032130}
+a:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--gem);outline-offset:2px}
+
+.banner{border:1px dashed rgba(255,212,107,.5);background:rgba(255,212,107,.08);color:#ffe7ad;border-radius:14px;padding:10px 14px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;backdrop-filter:blur(6px)}
+.card h2{font-family:var(--display);font-weight:600;font-size:21px;margin:0 0 4px;text-wrap:balance}
+.card .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:720px){.grid2{grid-template-columns:1fr}}
+
+/* submit */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{font:inherit;font-weight:700;border:1px solid var(--line);background:rgba(2,12,22,.4);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer}
+.chip:hover{border-color:var(--glow)}
+.chip[aria-pressed="true"]{background:var(--krill);border-color:var(--krill);color:#2a0a05}
+textarea{width:100%;min-height:118px;resize:vertical;font:inherit;font-size:16px;color:var(--ink);background:rgba(2,12,22,.55);border:1px solid var(--line);border-radius:14px;padding:12px}
+textarea::placeholder{color:#6d90a5}
+.preview{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.tiles{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.tile{border-radius:12px;padding:8px 2px 6px;text-align:center;background:rgba(2,12,22,.45);border:1px solid var(--line);border-top:3px solid var(--c)}
+.tile .e{font-size:22px;line-height:1.1}
+.tile .n{font-size:10.5px;color:var(--muted);font-weight:700;margin-top:3px;line-height:1.1}
+.tile .p{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
+.sumline{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.sumline .big{font-family:var(--display);font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}
+.depth{height:8px;border-radius:99px;background:rgba(2,12,22,.6);overflow:hidden}
+.depth i{display:block;height:100%;background:linear-gradient(90deg,var(--glow),#3b7bff,var(--krill))}
+.err{color:var(--bad);font-weight:700;font-size:14px}
+.warn{color:var(--gem);font-size:13px}
+.btn{font:inherit;font-weight:800;font-size:16px;margin-top:12px;width:100%;padding:12px;border-radius:14px;border:0;background:var(--glow);color:#032130;cursor:pointer}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.hint{font-size:13px;color:var(--muted);margin-top:8px}
+
+/* board rows */
+.rows{display:flex;flex-direction:column;gap:8px}
+.row{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:rgba(2,12,22,.38);border:1px solid transparent}
+.row.me{border-color:rgba(255,125,110,.45)}
+.place{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:700;font-size:15px;background:var(--card-hi);color:var(--ink)}
+.place.p1{background:var(--gem);color:#3a2700}
+.place.p2{background:#d6e6f2;color:#1b2a36}
+.place.p3{background:#e2a173;color:#3b1d08}
+.place.miss{background:rgba(255,107,129,.18);color:var(--bad)}
+.place.wait{background:transparent;border:1px dashed var(--line);color:var(--muted)}
+.who{min-width:0}
+.who .nm{font-weight:800}
+.who .em{font-size:17px;letter-spacing:1px;white-space:nowrap;overflow-x:auto}
+.who .note{font-size:13px;color:var(--muted)}
+.pts{text-align:right;font-variant-numeric:tabular-nums}
+.pts b{font-family:var(--display);font-size:22px;font-weight:700;display:block;line-height:1}
+.pts small{color:var(--muted);font-size:12px}
+.pts.neg b{color:var(--bad)}
+
+/* standings */
+.podium{display:grid;grid-template-columns:1fr 1.15fr 1fr;align-items:end;gap:10px;margin-bottom:16px}
+.pod{border-radius:16px 16px 6px 6px;padding:14px 8px;text-align:center;background:var(--card-hi);border:1px solid var(--line)}
+.pod .rk{font-family:var(--display);font-size:15px;font-weight:700;color:var(--muted)}
+.pod .nm{font-family:var(--display);font-size:20px;font-weight:700;margin:4px 0 2px;overflow-wrap:anywhere}
+.pod .tt{font-variant-numeric:tabular-nums;font-weight:800}
+.pod.g1{min-height:150px;border-color:rgba(255,212,107,.6);box-shadow:0 0 28px rgba(255,212,107,.15)}
+.pod.g1 .rk{color:var(--gem)}
+.pod.g2{min-height:122px}
+.pod.g3{min-height:104px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--muted);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+td.name{font-weight:800}
+td.tot{font-family:var(--display);font-size:18px;font-weight:700}
+td .zero{color:#4f6676}
+td.missc{color:var(--bad)}
+.legend{font-size:13px;color:var(--muted);margin-top:12px}
+
+/* history */
+.day{display:flex;flex-direction:column;gap:10px}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.pill{font-size:12px;font-weight:800;padding:3px 10px;border-radius:99px}
+.pill.final{background:rgba(111,240,176,.14);color:var(--good)}
+.pill.live{background:rgba(95,230,240,.16);color:var(--glow)}
+.history{display:flex;flex-direction:column;gap:14px}
+
+/* stats */
+.awards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.award{background:rgba(2,12,22,.4);border:1px solid var(--line);border-radius:14px;padding:12px}
+.award .t{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.award .w{font-family:var(--display);font-size:20px;font-weight:700;margin-top:4px}
+.award .d{font-size:13px;color:var(--muted)}
+.tierhead span{font-size:18px}
+.empty{color:var(--muted);text-align:center;padding:20px}
+
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0b2a40;border:1px solid var(--glow);color:var(--ink);padding:10px 16px;border-radius:12px;font-weight:700;z-index:5;max-width:calc(100% - 32px)}
+footer{color:#5f8299;font-size:12px;text-align:center}
+@media (max-width:440px){
+  .brand h1{font-size:31px}
+  .tile .n{display:none}
+  .row{grid-template-columns:36px 1fr auto;gap:9px}
+}
+</style>
+</head>
+<body>
+<div class="bubbles" aria-hidden="true" id="bubbles"></div>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Krill<b>board</b></h1>
+      <p id="subtitle">Daily Dive standings for Srikar, Armaan, Liv, Niha &amp; Mistry</p>
+    </div>
+    <div class="clock" aria-live="polite">
+      <span class="dive" id="clockDive">Dive #—</span>
+      <span class="left" id="clockLeft">&nbsp;</span>
+    </div>
+  </header>
+  <nav aria-label="Pages">
+    <a href="#today" data-view="today">Today</a>
+    <a href="#standings" data-view="standings">Standings</a>
+    <a href="#history" data-view="history">History</a>
+    <a href="#stats" data-view="stats">Stats</a>
+  </nav>
+  <div id="banner"></div>
+  <main id="view"></main>
+  <footer>Points = sum of your 7 answers (max 700). Missing a day costs 50 points and counts as a last-place finish. New players' penalties start the day after they join. Each day closes at midnight Eastern.</footer>
+</div>
+
+<script>
+/*CORE-START*/
+const CONFIG = {
+  // Paste your Google Apps Script web app link between the quotes (see README step 2).
+  // Leave it empty to preview the page with sample scores.
+  API_URL: "https://script.google.com/macros/s/AKfycby12Fim6PtD7NtI_RpT8Zl7hkqq0nPrCH_PWN6siEuR7pJDsmPBmKhoFyb1Okk87HYgSg/exec",
+  PLAYERS: ["Srikar", "Armaan", "Liv", "Niha", "Mistry"],
+  MISS_PENALTY: 50,
+  EPOCH_UTC: Date.UTC(2026, 6, 15), // Krillion #1 was Jul 16, 2026
+  TZ: "America/New_York",
+};
+const TIERS = [
+  { code: "K", emoji: "🌟", name: "One in a Krillion", short: "Krillion", pts: 100 },
+  { code: "D", emoji: "🏮", name: "Deep Cut", short: "Deep Cut", pts: 85 },
+  { code: "R", emoji: "🦑", name: "Rare", short: "Rare", pts: 60 },
+  { code: "S", emoji: "🐟", name: "Schooler", short: "Schooler", pts: 30 },
+  { code: "C", emoji: "🤡", name: "Too Clever", short: "Clever", pts: 15 },
+  { code: "P", emoji: "🫧", name: "Plankton", short: "Plankton", pts: 10 },
+  { code: "X", emoji: "✖️", name: "Miss", short: "Miss", pts: 0 },
+];
+const BY_CODE = Object.fromEntries(TIERS.map(t => [t.code, t]));
+const norm = s => s.replace(/️/g, "");
+const BY_EMOJI = Object.fromEntries(TIERS.filter(t => t.code !== "X").map(t => [norm(t.emoji), t]));
+
+function etParts(date = new Date()) {
+  const f = new Intl.DateTimeFormat("en-US", { timeZone: CONFIG.TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+  const o = {};
+  for (const p of f.formatToParts(date)) o[p.type] = p.value;
+  return { y: +o.year, m: +o.month, d: +o.day, h: +o.hour % 24, mi: +o.minute, s: +o.second };
+}
+function currentDay(date) {
+  const p = etParts(date);
+  return Math.round((Date.UTC(p.y, p.m - 1, p.d) - CONFIG.EPOCH_UTC) / 864e5);
+}
+function fmtDay(n) {
+  return new Date(CONFIG.EPOCH_UTC + n * 864e5).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
+}
+function secsToMidnight(date) {
+  const p = etParts(date);
+  return 86400 - (p.h * 3600 + p.mi * 60 + p.s);
+}
+function scoreOf(tiers) { return [...tiers].reduce((a, c) => a + BY_CODE[c].pts, 0); }
+function graphemes(s) {
+  if (typeof Intl !== "undefined" && Intl.Segmenter) return Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(s), x => x.segment);
+  return Array.from(s);
+}
+function parseShare(text, today) {
+  if (!text || !text.trim()) return null;
+  const out = { day: null, tiers: null, stated: null, score: null, errors: [], warn: null };
+  const m = text.match(/krillion\s*#\s*(\d+)/i);
+  if (m) out.day = +m[1]; else out.errors.push("Couldn't find the “Krillion #” line. Paste the whole share.");
+  const lines = text.split(/\r?\n/);
+  let best = null, bestHits = 0;
+  for (const line of lines) {
+    if (/krillion\s*#/i.test(line)) continue;
+    const g = graphemes(line).filter(x => x.trim());
+    const hits = g.filter(x => BY_EMOJI[norm(x)]).length;
+    if (hits > bestHits) { best = g; bestHits = hits; }
+  }
+  if (!best) out.errors.push("Couldn't find your row of emojis.");
+  else if (best.length !== 7) out.errors.push(`Found ${best.length} emojis in your row. A dive has 7.`);
+  else out.tiers = best.map(x => (BY_EMOJI[norm(x)] || BY_CODE.X).code).join("");
+  const s = lines.map(l => l.trim()).find(l => /^\d{1,3}$/.test(l));
+  if (s) out.stated = +s;
+  if (out.tiers) {
+    out.score = scoreOf(out.tiers);
+    if (out.stated != null && out.stated !== out.score) out.warn = `The paste says ${out.stated}, but the emojis add up to ${out.score}. The emoji total is what counts.`;
+  }
+  if (out.day != null && today != null && out.day > today + 1) out.errors.push(`Dive #${out.day} hasn't happened yet. Today is #${today}.`);
+  return out;
+}
+// roster: [{name, joined}] — joined = first Krillion # that can cost them a missed-day penalty (null = from season start)
+function defaultRoster() { return CONFIG.PLAYERS.map(name => ({ name, joined: null })); }
+const slug = name => name.replace(/[^A-Za-z0-9]/g, "_");
+function cleanName(raw) { return String(raw || "").replace(/\s+/g, " ").trim(); }
+function checkNewName(raw, roster) {
+  const n = cleanName(raw);
+  if (!n) return "Type a name first.";
+  if (n.length > 20) return "Keep names to 20 characters or fewer.";
+  if (!/^[A-Za-z0-9 .'_-]+$/.test(n)) return "Use letters, numbers and spaces only.";
+  if (roster.some(p => slug(p.name).toLowerCase() === slug(n).toLowerCase())) return `${n} is already on the board.`;
+  return null;
+}
+function mergeRoster(docs) {
+  const out = defaultRoster();
+  for (const d of docs) {
+    if (!d || typeof d.name !== "string" || !Number.isInteger(d.joined)) continue;
+    const n = cleanName(d.name);
+    if (!n || checkNewName(n, out)) continue;
+    out.push({ name: n, joined: d.joined });
+  }
+  return out;
+}
+function validDive(d, names) {
+  return d && (names || CONFIG.PLAYERS).includes(d.player) && Number.isInteger(d.day) && d.day > 0 && typeof d.tiers === "string" && /^[KDRSCPX]{7}$/.test(d.tiers);
+}
+function blankPlayer(name) {
+  return { name, total: 0, scoreSum: 0, played: 0, missed: 0, penalty: 0, places: {}, tiers: { K: 0, D: 0, R: 0, S: 0, C: 0, P: 0, X: 0 }, best: null, streak: 0 };
+}
+function compute(dives, cd, roster) {
+  roster = roster || defaultRoster();
+  const P = roster.map(p => p.name);
+  const players = Object.fromEntries(P.map(n => [n, blankPlayer(n)]));
+  const byDay = new Map();
+  for (const d of dives) {
+    if (!validDive(d, P)) continue;
+    if (!byDay.has(d.day)) byDay.set(d.day, new Map());
+    byDay.get(d.day).set(d.player, { ...d, score: scoreOf(d.tiers) });
+  }
+  const out = [];
+  if (byDay.size) {
+    const keys = [...byDay.keys()];
+    const start = Math.min(...keys), end = Math.max(cd, ...keys);
+    for (let day = start; day <= end; day++) {
+      const entries = byDay.get(day) || new Map();
+      const closed = day < cd;
+      if (!entries.size && day > cd) continue;
+      // who is in this day: anyone who posted, plus everyone whose penalties had started
+      const due = roster.filter(p => !entries.has(p.name) && (p.joined == null || p.joined <= day)).map(p => p.name);
+      const field = entries.size + due.length;
+      const posted = [...entries.values()].sort((a, b) => b.score - a.score);
+      const rows = posted.map(e => ({ ...e, status: "played", place: 1 + posted.filter(o => o.score > e.score).length, pts: e.score }));
+      for (const n of due) {
+        rows.push(closed ? { player: n, status: "missed", place: field, pts: -CONFIG.MISS_PENALTY } : { player: n, status: "pending" });
+      }
+      out.push({ day, closed, rows, field });
+      for (const r of rows) {
+        const p = players[r.player];
+        if (r.status === "played") {
+          p.played++; p.scoreSum += r.score; p.total += r.score; p.places[r.place] = (p.places[r.place] || 0) + 1;
+          for (const c of r.tiers) p.tiers[c]++;
+          if (!p.best || r.score > p.best.score) p.best = { score: r.score, day };
+        } else if (r.status === "missed") {
+          p.missed++; p.total -= CONFIG.MISS_PENALTY; p.penalty += CONFIG.MISS_PENALTY; p.places[r.place] = (p.places[r.place] || 0) + 1;
+        }
+      }
+    }
+    for (const n of P) {
+      let s = 0;
+      for (let i = out.length - 1; i >= 0; i--) {
+        const r = out[i].rows.find(x => x.player === n);
+        if (!r || r.status === "pending") continue;
+        if (r.status === "played") s++; else break;
+      }
+      players[n].streak = s;
+    }
+  }
+  out.reverse();
+  const standings = Object.values(players).sort((a, b) => b.total - a.total || (b.places[1] || 0) - (a.places[1] || 0) || a.name.localeCompare(b.name));
+  standings.forEach((p, i) => { p.rank = i > 0 && standings[i - 1].total === p.total ? standings[i - 1].rank : i + 1; });
+  return { days: out, players, standings };
+}
+function sampleDives(cd) {
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const weights = [["P", .2], ["C", .06], ["S", .3], ["R", .24], ["D", .15], ["K", .05]];
+  const pick = () => { let r = rnd(); for (const [c, w] of weights) { if ((r -= w) < 0) return c; } return "S"; };
+  const dives = [];
+  for (let day = cd - 6; day < cd; day++) {
+    for (const player of CONFIG.PLAYERS) {
+      if ((player === "Liv" && day === cd - 4) || (player === "Mistry" && day === cd - 2)) continue;
+      dives.push({ day, player, tiers: Array.from({ length: 7 }, pick).join("") });
+    }
+  }
+  dives.push({ day: cd, player: "Srikar", tiers: "SRSRDPS" });
+  dives.push({ day: cd, player: "Niha", tiers: "RSDSCRR" });
+  dives.push({ day: cd, player: "Armaan", tiers: "SPSRSSP" });
+  return dives;
+}
+/*CORE-END*/
+
+/* ---------- page ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const emo = tiers => [...tiers].map(c => BY_CODE[c].emoji).join("");
+const ord = n => { const v = n % 100; return n + (v >= 11 && v <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"); };
+const VIEWS = ["today", "standings", "history", "stats"];
+
+const state = {
+  db: null,
+  live: [],          // real dives from the shared store
+  loaded: false,
+  stale: false,
+  local: [],         // dives added in preview when there is no store
+  me: (() => { try { return localStorage.getItem("krillboard-me") || ""; } catch (e) { return ""; } })(),
+  draft: "",
+  readOnly: false,
+  rosterDocs: [],
+  adding: false,
+  addErr: "",
+  passNeeded: false,
+  pass: (() => { try { return localStorage.getItem("krillboard-pass") || ""; } catch (e) { return ""; } })(),
+};
+const roster = () => mergeRoster(state.rosterDocs);
+
+function dataset() {
+  const cd = currentDay();
+  if (state.live.length) return { dives: state.live, sample: false, cd };
+  return { dives: sampleDives(cd).concat(state.local), sample: true, cd };
+}
+function namesList(names) {
+  return names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " & " + names[names.length - 1];
+}
+
+function setMe(name) {
+  state.me = name;
+  try { localStorage.setItem("krillboard-me", name); } catch (e) {}
+}
+
+function toast(msg) {
+  const t = document.createElement("div");
+  t.className = "toast"; t.setAttribute("role", "status"); t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3200);
+}
+
+function placeBadge(r) {
+  if (r.status === "missed") return `<span class="place miss" title="Missed">✖</span>`;
+  if (r.status === "pending") return `<span class="place wait" title="Hasn't posted">…</span>`;
+  return `<span class="place p${r.place}">${r.place}</span>`;
+}
+function rowHtml(r, closed) {
+  const me = r.player === state.me ? " me" : "";
+  if (r.status === "played") {
+    return `<div class="row${me}">${placeBadge(r)}<div class="who"><div class="nm">${esc(r.player)}</div><div class="em" aria-label="answers">${emo(r.tiers)}</div></div><div class="pts"><b>${r.score}</b><small>${(r.score * 10).toLocaleString()} m</small></div></div>`;
+  }
+  if (r.status === "missed") {
+    return `<div class="row${me}">${placeBadge(r)}<div class="who"><div class="nm">${esc(r.player)}</div><div class="note">Missed the dive · counts as ${ord(r.place)}</div></div><div class="pts neg"><b>−${CONFIG.MISS_PENALTY}</b><small>penalty</small></div></div>`;
+  }
+  return `<div class="row${me}">${placeBadge(r)}<div class="who"><div class="nm">${esc(r.player)}</div><div class="note">Still diving…</div></div><div class="pts"><b>—</b><small>&nbsp;</small></div></div>`;
+}
+
+function viewToday(c) {
+  const R = roster();
+  const today = c.days.find(d => d.day === c.cd) || { day: c.cd, closed: false, rows: R.filter(p => p.joined == null || p.joined <= c.cd).map(p => ({ player: p.name, status: "pending" })) };
+  const yday = c.days.find(d => d.day === c.cd - 1);
+  const chips = R.map(p => `<button type="button" class="chip" data-me="${esc(p.name)}" aria-pressed="${p.name === state.me}">${esc(p.name)}</button>`).join("")
+    + `<button type="button" class="chip" id="addToggle" aria-expanded="${state.adding}" style="border-style:dashed;color:var(--muted)">+ Add player</button>`;
+  const addForm = state.adding ? `
+      <form class="addform" id="addForm" style="display:flex;flex-direction:column;gap:6px;margin:-2px 0 14px;padding:12px;border:1px dashed var(--line);border-radius:14px">
+        <label for="newName" style="font-weight:700;font-size:14px">New player's name</label>
+        <div style="display:flex;gap:8px">
+          <input id="newName" maxlength="20" autocomplete="off" style="flex:1;min-width:0;font:inherit;font-size:16px;color:var(--ink);background:rgba(2,12,22,.55);border:1px solid var(--line);border-radius:10px;padding:8px 10px">
+          <button type="submit" class="chip" style="background:var(--glow);color:#032130;border-color:var(--glow)">Add</button>
+        </div>
+        <span class="hint" style="margin:0">They can post today and any past dives. Missed-day penalties start for them tomorrow (#${c.cd + 1}).</span>
+        ${state.addErr ? `<span class="err">${esc(state.addErr)}</span>` : ""}
+      </form>` : "";
+  return `
+  <div class="grid2">
+    <section class="card" aria-labelledby="logH">
+      <h2 id="logH">Log your dive</h2>
+      <p class="sub">Pick your name, then paste the share text straight from Krillion.</p>
+      <div class="chips" role="group" aria-label="Who are you?">${chips}</div>${addForm}
+      ${state.passNeeded ? `<label for="pass" class="sub" style="display:block;margin:0 0 6px">Group passcode</label><input id="pass" type="password" autocomplete="off" value="${esc(state.pass)}" style="width:100%;margin-bottom:12px;font:inherit;font-size:16px;color:var(--ink);background:rgba(2,12,22,.55);border:1px solid var(--line);border-radius:10px;padding:8px 10px">` : ""}
+      <label for="paste" class="sub" style="display:block;margin:0 0 6px">Your Krillion share</label>
+      <textarea id="paste" placeholder="Krillion #${c.cd} 🦐&#10;305&#10;&#10;🐟🦑🐟🦑🏮🫧🐟">${esc(state.draft)}</textarea>
+      <div class="preview" id="preview"></div>
+      <button type="button" class="btn" id="submitBtn" disabled>Submit dive</button>
+      <div class="hint" id="submitHint"></div>
+    </section>
+    <section class="card" aria-labelledby="todayH">
+      <h2 id="todayH">Dive #${today.day} · ${fmtDay(today.day)}</h2>
+      <p class="sub">Today's order so far. It locks at midnight Eastern.</p>
+      <div class="rows">${today.rows.map(r => rowHtml(r, false)).join("")}</div>
+      ${yday ? `<h2 style="margin-top:20px;font-size:17px">Yesterday · #${yday.day}</h2><p class="sub">Final result</p><div class="rows">${yday.rows.slice(0, 3).map(r => rowHtml(r, true)).join("")}</div>` : ""}
+    </section>
+  </div>`;
+}
+
+function viewStandings(c) {
+  const s = c.standings;
+  if (!c.days.length) return `<section class="card"><div class="empty">No dives yet. The first score posted starts the season.</div></section>`;
+  const pod = [s[1], s[0], s[2]].map((p, i) => p ? `<div class="pod g${[2, 1, 3][i]}"><div class="rk">${ord(p.rank)}</div><div class="nm">${esc(p.name)}</div><div class="tt">${p.total.toLocaleString()} pts</div></div>` : "<div></div>").join("");
+  const cell = n => n ? n : `<span class="zero">0</span>`;
+  const maxPlace = Math.max(5, ...c.days.map(d => d.field));
+  const cols = Array.from({ length: maxPlace }, (_, i) => i + 1);
+  const rows = s.map(p => `<tr><td>${p.rank}</td><td class="name">${esc(p.name)}</td><td class="tot">${p.total.toLocaleString()}</td><td>${p.played ? Math.round(p.scoreSum / p.played) : "—"}</td>${cols.map(k => `<td>${cell(p.places[k])}</td>`).join("")}<td class="${p.missed ? "missc" : ""}">${cell(p.missed)}</td></tr>`).join("");
+  return `
+  <section class="card" aria-labelledby="stH">
+    <h2 id="stH">Season standings</h2>
+    <p class="sub">${c.days.filter(d => d.closed).length} finished dives · today's scores count as they come in</p>
+    <div class="podium">${pod}</div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>#</th><th>Player</th><th>Points</th><th>Avg</th>${cols.map(k => `<th>${ord(k)}</th>`).join("")}<th>Missed</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <p class="legend">Points include the −${CONFIG.MISS_PENALTY} for each missed day. Avg is per dive played. A missed day also counts as a last-place finish for that day. New players are only penalized from the day after they joined.</p>
+  </section>`;
+}
+
+function viewHistory(c) {
+  if (!c.days.length) return `<section class="card"><div class="empty">Nothing here yet.</div></section>`;
+  return `<div class="history">${c.days.map(d => `
+    <section class="card day" aria-label="Dive ${d.day}">
+      <div class="dayhead"><h2>#${d.day} · ${fmtDay(d.day)}</h2><span class="pill ${d.closed ? "final" : "live"}">${d.closed ? "Final" : "Live"}</span></div>
+      <div class="rows">${d.rows.map(r => rowHtml(r, d.closed)).join("")}</div>
+    </section>`).join("")}</div>`;
+}
+
+function viewStats(c) {
+  const ps = Object.values(c.players);
+  if (!c.days.length) return `<section class="card"><div class="empty">Stats show up after the first dive.</div></section>`;
+  const top = (fn, label) => {
+    const max = Math.max(...ps.map(fn));
+    if (max <= 0) return { w: "Nobody yet", d: "" };
+    const who = ps.filter(p => fn(p) === max).map(p => p.name);
+    return { w: who.join(" & "), d: label(max) };
+  };
+  const best = ps.filter(p => p.best).sort((a, b) => b.best.score - a.best.score)[0];
+  const awards = [
+    ["Most wins", top(p => p.places[1] || 0, n => `${n} first-place finish${n === 1 ? "" : "es"}`)],
+    ["Deepest diver", top(p => p.tiers.D + p.tiers.K, n => `${n} Deep Cuts + Krillions`)],
+    ["Best single dive", best ? { w: best.name, d: `${best.best.score} on #${best.best.day} (${(best.best.score * 10).toLocaleString()} m)` } : { w: "Nobody yet", d: "" }],
+    ["Hot streak", top(p => p.streak, n => `${n} dive${n === 1 ? "" : "s"} in a row`)],
+    ["Class clown", top(p => p.tiers.C, n => `${n} Too Clever answer${n === 1 ? "" : "s"} 🤡`)],
+    ["Plankton enjoyer", top(p => p.tiers.P, n => `${n} Plankton answers`)],
+  ].map(([t, a]) => `<div class="award"><div class="t">${t}</div><div class="w">${esc(a.w)}</div><div class="d">${esc(a.d)}</div></div>`).join("");
+  const order = ["K", "D", "R", "S", "C", "P", "X"];
+  const head = order.map(k => `<th class="tierhead" title="${BY_CODE[k].name}"><span>${BY_CODE[k].emoji}</span><br>${BY_CODE[k].short}</th>`).join("");
+  const rows = c.standings.map(p => `<tr><td></td><td class="name">${esc(p.name)}</td>${order.map(k => `<td>${p.tiers[k] || '<span class="zero">0</span>'}</td>`).join("")}<td>${p.best ? p.best.score : "—"}</td></tr>`).join("");
+  return `
+  <section class="card" aria-labelledby="awH"><h2 id="awH">Awards</h2><p class="sub">Updated with every dive</p><div class="awards">${awards}</div></section>
+  <section class="card" aria-labelledby="tiH">
+    <h2 id="tiH">Answer tiers</h2><p class="sub">How many of each answer everyone has pulled this season</p>
+    <div class="tablewrap"><table><thead><tr><th></th><th>Player</th>${head}<th>Best</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="legend">🌟 100 · 🏮 85 · 🦑 60 · 🐟 30 · 🤡 15 · 🫧 10 · ✖️ 0 (no answer or not accepted)</p>
+  </section>`;
+}
+
+function currentView() {
+  const h = location.hash.replace("#", "");
+  return VIEWS.includes(h) ? h : "today";
+}
+
+function render() {
+  const ds = dataset();
+  const R = roster();
+  const c = compute(ds.dives, ds.cd, R);
+  c.cd = ds.cd;
+  $("#subtitle").textContent = `Daily Dive standings for ${namesList(R.map(p => p.name))}`;
+  const v = currentView();
+  document.querySelectorAll("nav a").forEach(a => { if (a.dataset.view === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  let note = "";
+  if (ds.sample) note = CONFIG.API_URL ? (state.loaded ? "These are sample scores to show the layout. They disappear as soon as the first real dive is posted." : "Loading scores…") : "Preview with sample scores. Add your Google Sheet link (API_URL) to go live.";
+  if (state.stale) note = "Can't reach the scoreboard right now. What you see may be out of date.";
+  $("#banner").innerHTML = note ? `<div class="banner">${esc(note)}</div>` : "";
+  const html = { today: viewToday, standings: viewStandings, history: viewHistory, stats: viewStats }[v](c);
+  $("#view").innerHTML = html;
+  if (v === "today") wireToday(c);
+}
+
+function wireToday(c) {
+  document.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => { setMe(b.dataset.me); render(); }));
+  $("#addToggle").addEventListener("click", () => { state.adding = !state.adding; state.addErr = ""; render(); if (state.adding) $("#newName").focus(); });
+  const af = $("#addForm");
+  if (af) af.addEventListener("submit", e => { e.preventDefault(); addPlayer($("#newName").value, c); });
+  const pi = $("#pass");
+  if (pi) pi.addEventListener("input", () => { state.pass = pi.value.trim(); try { localStorage.setItem("krillboard-pass", state.pass); } catch (e) {} });
+  const ta = $("#paste");
+  ta.addEventListener("input", () => { state.draft = ta.value; updatePreview(c); });
+  $("#submitBtn").addEventListener("click", () => submit(c));
+  updatePreview(c);
+}
+
+function updatePreview(c) {
+  const p = parseShare(state.draft, c.cd);
+  const btn = $("#submitBtn"), hint = $("#submitHint"), pv = $("#preview");
+  let ok = false;
+  if (!p) { pv.innerHTML = ""; }
+  else {
+    let h = "";
+    if (p.tiers) {
+      h += `<div class="tiles">${[...p.tiers].map(k => { const t = BY_CODE[k]; return `<div class="tile" style="--c:var(--t-${k})"><div class="e">${t.emoji}</div><div class="n">${t.short}</div><div class="p">${t.pts}</div></div>`; }).join("")}</div>`;
+      h += `<div class="sumline"><span>${p.day ? `Dive #${p.day}` : ""}</span><span class="big">${p.score} <small style="font-size:14px;color:var(--muted)">/ 700 · ${(p.score * 10).toLocaleString()} m</small></span></div>`;
+      h += `<div class="depth"><i style="width:${Math.round(p.score / 7)}%"></i></div>`;
+    }
+    if (p.warn) h += `<div class="warn">${esc(p.warn)}</div>`;
+    if (p.errors.length) h += `<div class="err">${p.errors.map(esc).join("<br>")}</div>`;
+    pv.innerHTML = h;
+    ok = !p.errors.length && p.tiers && p.day;
+  }
+  const already = ok && dataset().dives.some(d => d.day === p.day && d.player === state.me);
+  btn.textContent = already ? "Replace my dive" : "Submit dive";
+  btn.disabled = !(ok && state.me) || state.readOnly;
+  hint.textContent = state.readOnly ? "You can view the board, but you don't have permission to post. Ask Srikar to share it with you as an Editor."
+    : !state.me ? "Tap your name first." : ok && p.day < c.cd ? `This is a late post for #${p.day}. It replaces the missed-day penalty.` : "";
+}
+
+async function addPlayer(raw, c) {
+  const R = roster();
+  const err = checkNewName(raw, R);
+  if (err) { state.addErr = err; render(); const i = $("#newName"); if (i) { i.value = cleanName(raw); i.focus(); } return; }
+  const name = cleanName(raw);
+  if (!CONFIG.API_URL) {
+    state.rosterDocs = state.rosterDocs.concat({ name, joined: c.cd + 1 });
+  } else {
+    try { applyServer(await apiPost({ action: "player", name })); }
+    catch (e) { state.addErr = e.message || "Couldn't add them. Check your connection and try again."; render(); return; }
+  }
+  state.adding = false; state.addErr = "";
+  setMe(name);
+  toast(`${name} joined the board`);
+  render();
+}
+
+async function submit(c) {
+  const p = parseShare(state.draft, c.cd);
+  if (!p || p.errors.length || !p.tiers || !state.me) return;
+  const dive = { day: p.day, player: state.me, tiers: p.tiers, score: p.score, at: new Date().toISOString() };
+  const btn = $("#submitBtn");
+  btn.disabled = true; btn.textContent = "Saving…";
+  if (!CONFIG.API_URL) {
+    state.local = state.local.filter(d => !(d.day === dive.day && d.player === dive.player)).concat(dive);
+    state.draft = "";
+    toast("Added to this preview only.");
+    render();
+    return;
+  }
+  try {
+    applyServer(await apiPost({ action: "dive", day: dive.day, player: dive.player, tiers: dive.tiers }));
+    state.draft = "";
+    toast(`${dive.player}: ${dive.score} points logged for #${dive.day}`);
+    render();
+  } catch (e) {
+    if (e.code === "bad_passcode") { state.passNeeded = true; render(); toast("Wrong group passcode. Check it and try again."); return; }
+    toast(e.message || "Couldn't save that. Check your connection and try again.");
+    btn.disabled = false; btn.textContent = "Submit dive";
+  }
+}
+
+function tickClock() {
+  const cd = currentDay();
+  const s = secsToMidnight();
+  $("#clockDive").textContent = `Dive #${cd} · ${fmtDay(cd)}`;
+  $("#clockLeft").textContent = `Closes in ${Math.floor(s / 3600)}h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}m`;
+}
+
+let lastDay = currentDay();
+setInterval(() => {
+  tickClock();
+  const cd = currentDay();
+  if (cd !== lastDay) { lastDay = cd; render(); }
+}, 20000);
+
+(function bubbles() {
+  const box = $("#bubbles");
+  for (let i = 0; i < 18; i++) {
+    const b = document.createElement("span");
+    const size = 4 + Math.random() * 14;
+    b.style.cssText = `left:${Math.random() * 100}%;width:${size}px;height:${size}px;animation-duration:${10 + Math.random() * 16}s;animation-delay:${-Math.random() * 20}s`;
+    box.appendChild(b);
+  }
+})();
+
+window.addEventListener("hashchange", render);
+tickClock();
+render();
+
+/* ---------- Google Sheet connection ---------- */
+async function apiGet() {
+  const r = await fetch(CONFIG.API_URL + (CONFIG.API_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
+  const j = await r.json();
+  if (!j.ok) throw Object.assign(new Error(j.error || "Couldn't load scores."), { code: j.code });
+  return j;
+}
+async function apiPost(body) {
+  // Sent as plain text on purpose: Google Apps Script accepts it without a CORS preflight.
+  const r = await fetch(CONFIG.API_URL, { method: "POST", body: JSON.stringify({ ...body, passcode: state.pass }) });
+  const j = await r.json();
+  if (!j.ok) throw Object.assign(new Error(j.error || "Couldn't save that."), { code: j.code });
+  return j;
+}
+function applyServer(j) {
+  state.loaded = true;
+  state.stale = false;
+  state.live = (j.dives || []).filter(d => d && typeof d.player === "string");
+  state.rosterDocs = j.players || [];
+  state.passNeeded = !!j.needsPasscode;
+}
+function renderKeepingFocus() {
+  const ae = document.activeElement;
+  const id = ae && ["paste", "newName", "pass"].includes(ae.id) ? ae.id : null;
+  const pos = id ? ae.selectionStart : 0;
+  const val = id === "newName" ? ae.value : null;
+  render();
+  if (id) {
+    const el = document.getElementById(id);
+    if (el) { if (val != null) el.value = val; el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) {} }
+  }
+}
+async function refresh() {
+  if (!CONFIG.API_URL) return;
+  try { applyServer(await apiGet()); }
+  catch (e) { state.loaded = true; state.stale = true; }
+  renderKeepingFocus();
+}
+if (CONFIG.API_URL) {
+  refresh();
+  setInterval(() => { if (document.visibilityState === "visible") refresh(); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
+}
+</script>
+</body>
+</html>
