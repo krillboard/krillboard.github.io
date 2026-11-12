@@ -144,6 +144,25 @@ td.missc{color:var(--bad)}
 .tierhead span{font-size:18px}
 .empty{color:var(--muted);text-align:center;padding:20px}
 
+details.ans{margin-top:4px}
+details.ans summary{cursor:pointer;color:var(--glow);font-size:13px;font-weight:700;list-style:none}
+details.ans summary::-webkit-details-marker{display:none}
+details.ans summary::before{content:"▸ ";}
+details.ans[open] summary::before{content:"▾ ";}
+.anslist{list-style:none;margin:6px 0 2px;padding:0;display:flex;flex-direction:column;gap:3px;font-size:14px}
+.anslist li{display:grid;grid-template-columns:24px 1fr auto;gap:6px;align-items:baseline}
+.anslist .tn{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.anslist .skip{color:#5f7d90;font-style:italic}
+.locked{font-size:13px;color:var(--muted);margin-top:2px}
+.anstoggle{font:inherit;font-weight:700;font-size:14px;width:100%;display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(2,12,22,.45);color:var(--ink);cursor:pointer}
+.anstoggle:hover{border-color:var(--glow)}
+.anstoggle .chev{color:var(--glow);transition:transform .15s}
+.anstoggle[aria-expanded="true"]{border-radius:12px 12px 0 0;border-bottom-color:transparent}
+.anstoggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
+#ansBox{border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;padding:4px 12px 12px;background:rgba(2,12,22,.3)}
+.ansday{font-size:13px;font-weight:700;color:var(--glow);margin:8px 0 0}
+.rule{font-size:13px;color:var(--muted);margin:6px 0}
+.rule code{background:rgba(2,12,22,.6);padding:1px 5px;border-radius:5px;color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0b2a40;border:1px solid var(--glow);color:var(--ink);padding:10px 16px;border-radius:12px;font-weight:700;z-index:5;max-width:calc(100% - 32px)}
 footer{color:#5f8299;font-size:12px;text-align:center}
 @media (max-width:440px){
@@ -182,7 +201,7 @@ footer{color:#5f8299;font-size:12px;text-align:center}
 const CONFIG = {
   // Paste your Google Apps Script web app link between the quotes (see README step 2).
   // Leave it empty to preview the page with sample scores.
-  API_URL: "https://script.google.com/macros/s/AKfycby12Fim6PtD7NtI_RpT8Zl7hkqq0nPrCH_PWN6siEuR7pJDsmPBmKhoFyb1Okk87HYgSg/exec",
+  API_URL: "",
   PLAYERS: ["Srikar", "Armaan", "Liv", "Niha", "Mistry"],
   MISS_PENALTY: 50,
   EPOCH_UTC: Date.UTC(2026, 6, 15), // Krillion #1 was Jul 16, 2026
@@ -247,6 +266,20 @@ function parseShare(text, today) {
   }
   if (out.day != null && today != null && out.day > today + 1) out.errors.push(`Dive #${out.day} hasn't happened yet. Today is #${today}.`);
   return out;
+}
+// Optional answers: one per line, in prompt order. "1." style numbers are stripped; "-" or a blank line = skipped.
+const MAX_ANSWER = 60;
+function parseAnswers(text) {
+  if (!text || !text.trim()) return { list: [], error: null };
+  const lines = text.split(/\r?\n/).map(l => l.replace(/^\s*\d+\s*[.):-]\s*/, "").trim());
+  while (lines.length && !lines[lines.length - 1]) lines.pop();
+  while (lines.length && !lines[0]) lines.shift();
+  if (lines.length > 7) return { list: [], error: `That's ${lines.length} lines. Put one answer per line, 7 max.` };
+  if (lines.some(l => l.length > MAX_ANSWER)) return { list: [], error: `Keep each answer under ${MAX_ANSWER} characters.` };
+  return { list: lines.map(l => (l === "-" ? "" : l)), error: null };
+}
+function cleanAnswers(a) {
+  return Array.isArray(a) ? a.slice(0, 7).map(x => String(x == null ? "" : x).slice(0, MAX_ANSWER)) : [];
 }
 // roster: [{name, joined}] — joined = first Krillion # that can cost them a missed-day penalty (null = from season start)
 function defaultRoster() { return CONFIG.PLAYERS.map(name => ({ name, joined: null })); }
@@ -338,10 +371,12 @@ function sampleDives(cd) {
   for (let day = cd - 6; day < cd; day++) {
     for (const player of CONFIG.PLAYERS) {
       if ((player === "Liv" && day === cd - 4) || (player === "Mistry" && day === cd - 2)) continue;
-      dives.push({ day, player, tiers: Array.from({ length: 7 }, pick).join("") });
+      const d = { day, player, tiers: Array.from({ length: 7 }, pick).join("") };
+      if (player === "Niha" && day === cd - 1) d.answers = ["orecchiette", "Neptune", "Lada", "", "Denali", "Moxie", "Ljubljana"];
+      dives.push(d);
     }
   }
-  dives.push({ day: cd, player: "Srikar", tiers: "SRSRDPS" });
+  dives.push({ day: cd, player: "Srikar", tiers: "SRSRDPS", answers: ["carbonara", "Saturn", "Toyota", "-", "Mount Elbrus", "Pepsi", "Paris"] });
   dives.push({ day: cd, player: "Niha", tiers: "RSDSCRR" });
   dives.push({ day: cd, player: "Armaan", tiers: "SPSRSSP" });
   return dives;
@@ -354,6 +389,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;"
 const emo = tiers => [...tiers].map(c => BY_CODE[c].emoji).join("");
 const ord = n => { const v = n % 100; return n + (v >= 11 && v <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"); };
 const VIEWS = ["today", "standings", "history", "stats"];
+const mePostedIn = d => d.rows.some(x => x.player === state.me && x.status === "played");
 
 const state = {
   db: null,
@@ -367,6 +403,8 @@ const state = {
   rosterDocs: [],
   adding: false,
   addErr: "",
+  answersDraft: "",
+  showAnswers: false,
   passNeeded: false,
   pass: (() => { try { return localStorage.getItem("krillboard-pass") || ""; } catch (e) { return ""; } })(),
 };
@@ -398,10 +436,21 @@ function placeBadge(r) {
   if (r.status === "pending") return `<span class="place wait" title="Hasn't posted">…</span>`;
   return `<span class="place p${r.place}">${r.place}</span>`;
 }
-function rowHtml(r, closed) {
+function answersHtml(r, closed, mePosted) {
+  const a = cleanAnswers(r.answers);
+  if (!a.some(Boolean)) return "";
+  if (!closed && !mePosted && r.player !== state.me) return `<div class="locked">🔒 Answers hidden until you post today's dive</div>`;
+  const items = [...r.tiers].map((c, i) => {
+    const t = BY_CODE[c];
+    const txt = a[i] ? esc(a[i]) : `<span class="skip">not shared</span>`;
+    return `<li><span>${t.emoji}</span><span>${txt}</span><span class="tn">${t.pts}</span></li>`;
+  }).join("");
+  return `<details class="ans"><summary>Answers</summary><ol class="anslist">${items}</ol></details>`;
+}
+function rowHtml(r, closed, mePosted) {
   const me = r.player === state.me ? " me" : "";
   if (r.status === "played") {
-    return `<div class="row${me}">${placeBadge(r)}<div class="who"><div class="nm">${esc(r.player)}</div><div class="em" aria-label="answers">${emo(r.tiers)}</div></div><div class="pts"><b>${r.score}</b><small>${(r.score * 10).toLocaleString()} m</small></div></div>`;
+    return `<div class="row${me}">${placeBadge(r)}<div class="who"><div class="nm">${esc(r.player)}</div><div class="em" aria-label="answers">${emo(r.tiers)}</div>${answersHtml(r, closed, mePosted)}</div><div class="pts"><b>${r.score}</b><small>${(r.score * 10).toLocaleString()} m</small></div></div>`;
   }
   if (r.status === "missed") {
     return `<div class="row${me}">${placeBadge(r)}<div class="who"><div class="nm">${esc(r.player)}</div><div class="note">Missed the dive · counts as ${ord(r.place)}</div></div><div class="pts neg"><b>−${CONFIG.MISS_PENALTY}</b><small>penalty</small></div></div>`;
@@ -434,6 +483,13 @@ function viewToday(c) {
       ${state.passNeeded ? `<label for="pass" class="sub" style="display:block;margin:0 0 6px">Group passcode</label><input id="pass" type="password" autocomplete="off" value="${esc(state.pass)}" style="width:100%;margin-bottom:12px;font:inherit;font-size:16px;color:var(--ink);background:rgba(2,12,22,.55);border:1px solid var(--line);border-radius:10px;padding:8px 10px">` : ""}
       <label for="paste" class="sub" style="display:block;margin:0 0 6px">Your Krillion share</label>
       <textarea id="paste" placeholder="Krillion #${c.cd} 🦐&#10;305&#10;&#10;🐟🦑🐟🦑🏮🫧🐟">${esc(state.draft)}</textarea>
+      <button type="button" class="anstoggle" id="ansToggle" aria-expanded="${state.showAnswers}" aria-controls="ansBox"><span>Add your answers <span style="color:var(--muted);font-weight:600">(optional)</span></span><span class="chev" aria-hidden="true">▾</span></button>
+      <div id="ansBox" ${state.showAnswers ? "" : "hidden"}>
+        <p class="rule">Type <b>one answer per line, in the same order as the prompts</b> (line 1 = prompt 1). They're saved with the dive number in the share you paste above, so a late post for yesterday keeps yesterday's answers. Numbers like <code>1.</code> are fine. Put <code>-</code> on a line to skip one. 7 lines max.</p>
+        <label for="answers" class="sub" style="display:block;margin:0 0 6px">Your answers</label>
+        <textarea id="answers" style="min-height:150px" placeholder="1. carbonara&#10;2. Saturn&#10;3. -&#10;4. ...">${esc(state.answersDraft)}</textarea>
+        <p class="rule">Everyone sees these under your score. Today's answers stay hidden from anyone who hasn't posted yet.</p>
+      </div>
       <div class="preview" id="preview"></div>
       <button type="button" class="btn" id="submitBtn" disabled>Submit dive</button>
       <div class="hint" id="submitHint"></div>
@@ -441,8 +497,8 @@ function viewToday(c) {
     <section class="card" aria-labelledby="todayH">
       <h2 id="todayH">Dive #${today.day} · ${fmtDay(today.day)}</h2>
       <p class="sub">Today's order so far. It locks at midnight Eastern.</p>
-      <div class="rows">${today.rows.map(r => rowHtml(r, false)).join("")}</div>
-      ${yday ? `<h2 style="margin-top:20px;font-size:17px">Yesterday · #${yday.day}</h2><p class="sub">Final result</p><div class="rows">${yday.rows.slice(0, 3).map(r => rowHtml(r, true)).join("")}</div>` : ""}
+      <div class="rows">${today.rows.map(r => rowHtml(r, false, mePostedIn(today))).join("")}</div>
+      ${yday ? `<h2 style="margin-top:20px;font-size:17px">Yesterday · #${yday.day}</h2><p class="sub">Final result</p><div class="rows">${yday.rows.slice(0, 3).map(r => rowHtml(r, true, true)).join("")}</div>` : ""}
     </section>
   </div>`;
 }
@@ -473,7 +529,7 @@ function viewHistory(c) {
   return `<div class="history">${c.days.map(d => `
     <section class="card day" aria-label="Dive ${d.day}">
       <div class="dayhead"><h2>#${d.day} · ${fmtDay(d.day)}</h2><span class="pill ${d.closed ? "final" : "live"}">${d.closed ? "Final" : "Live"}</span></div>
-      <div class="rows">${d.rows.map(r => rowHtml(r, d.closed)).join("")}</div>
+      <div class="rows">${d.rows.map(r => rowHtml(r, d.closed, mePostedIn(d))).join("")}</div>
     </section>`).join("")}</div>`;
 }
 
@@ -538,6 +594,9 @@ function wireToday(c) {
   if (pi) pi.addEventListener("input", () => { state.pass = pi.value.trim(); try { localStorage.setItem("krillboard-pass", state.pass); } catch (e) {} });
   const ta = $("#paste");
   ta.addEventListener("input", () => { state.draft = ta.value; updatePreview(c); });
+  $("#ansToggle").addEventListener("click", () => { state.showAnswers = !state.showAnswers; render(); if (state.showAnswers) $("#answers").focus(); });
+  const at = $("#answers");
+  at.addEventListener("input", () => { state.answersDraft = at.value; updatePreview(c); });
   $("#submitBtn").addEventListener("click", () => submit(c));
   updatePreview(c);
 }
@@ -554,10 +613,15 @@ function updatePreview(c) {
       h += `<div class="sumline"><span>${p.day ? `Dive #${p.day}` : ""}</span><span class="big">${p.score} <small style="font-size:14px;color:var(--muted)">/ 700 · ${(p.score * 10).toLocaleString()} m</small></span></div>`;
       h += `<div class="depth"><i style="width:${Math.round(p.score / 7)}%"></i></div>`;
     }
+    const ans = parseAnswers(state.answersDraft);
+    if (p.tiers && ans.list.some(Boolean)) {
+      h += `<p class="ansday">These answers will be saved with Dive #${p.day}${p.day === c.cd ? " (today)" : p.day < c.cd ? ` (${fmtDay(p.day)})` : ""}</p><ol class="anslist">${[...p.tiers].map((k, i) => `<li><span>${BY_CODE[k].emoji}</span><span>${ans.list[i] ? esc(ans.list[i]) : '<span class="skip">not shared</span>'}</span><span class="tn">${BY_CODE[k].pts}</span></li>`).join("")}</ol>`;
+    }
     if (p.warn) h += `<div class="warn">${esc(p.warn)}</div>`;
+    if (ans.error) h += `<div class="err">${esc(ans.error)}</div>`;
     if (p.errors.length) h += `<div class="err">${p.errors.map(esc).join("<br>")}</div>`;
     pv.innerHTML = h;
-    ok = !p.errors.length && p.tiers && p.day;
+    ok = !p.errors.length && p.tiers && p.day && !ans.error;
   }
   const already = ok && dataset().dives.some(d => d.day === p.day && d.player === state.me);
   btn.textContent = already ? "Replace my dive" : "Submit dive";
@@ -586,19 +650,22 @@ async function addPlayer(raw, c) {
 async function submit(c) {
   const p = parseShare(state.draft, c.cd);
   if (!p || p.errors.length || !p.tiers || !state.me) return;
+  const ans = parseAnswers(state.answersDraft);
+  if (ans.error) return;
   const dive = { day: p.day, player: state.me, tiers: p.tiers, score: p.score, at: new Date().toISOString() };
+  if (ans.list.some(Boolean)) dive.answers = ans.list;
   const btn = $("#submitBtn");
   btn.disabled = true; btn.textContent = "Saving…";
   if (!CONFIG.API_URL) {
     state.local = state.local.filter(d => !(d.day === dive.day && d.player === dive.player)).concat(dive);
-    state.draft = "";
+    state.draft = ""; state.answersDraft = ""; state.showAnswers = false;
     toast("Added to this preview only.");
     render();
     return;
   }
   try {
-    applyServer(await apiPost({ action: "dive", day: dive.day, player: dive.player, tiers: dive.tiers }));
-    state.draft = "";
+    applyServer(await apiPost({ action: "dive", day: dive.day, player: dive.player, tiers: dive.tiers, answers: dive.answers }));
+    state.draft = ""; state.answersDraft = ""; state.showAnswers = false;
     toast(`${dive.player}: ${dive.score} points logged for #${dive.day}`);
     render();
   } catch (e) {
@@ -659,7 +726,7 @@ function applyServer(j) {
 }
 function renderKeepingFocus() {
   const ae = document.activeElement;
-  const id = ae && ["paste", "newName", "pass"].includes(ae.id) ? ae.id : null;
+  const id = ae && ["paste", "newName", "pass", "answers"].includes(ae.id) ? ae.id : null;
   const pos = id ? ae.selectionStart : 0;
   const val = id === "newName" ? ae.value : null;
   render();
