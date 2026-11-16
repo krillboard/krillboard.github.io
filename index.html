@@ -400,7 +400,7 @@ const state = {
   loaded: false,
   stale: false,
   local: [],         // dives added in preview when there is no store
-  me: (() => { try { return localStorage.getItem("krillboard-me") || ""; } catch (e) { return ""; } })(),
+  me: (() => { try { const v = localStorage.getItem("krillboard-me") || ""; return v === "undefined" ? "" : v; } catch (e) { return ""; } })(),
   draft: "",
   readOnly: false,
   rosterDocs: [],
@@ -588,7 +588,7 @@ function render() {
 }
 
 function wireToday(c) {
-  document.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => { setMe(b.dataset.me); render(); }));
+  document.querySelectorAll(".chip[data-me]").forEach(b => b.addEventListener("click", () => { setMe(b.dataset.me); render(); }));
   $("#addToggle").addEventListener("click", () => { state.adding = !state.adding; state.addErr = ""; render(); if (state.adding) $("#newName").focus(); });
   const af = $("#addForm");
   if (af) af.addEventListener("submit", e => { e.preventDefault(); addPlayer($("#newName").value, c); });
