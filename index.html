@@ -50,6 +50,8 @@ header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-be
 .clock{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums}
 .clock .dive{font-family:var(--display);font-size:18px;font-weight:600}
 .clock .left{font-size:13px;color:var(--muted)}
+.play{margin-top:6px;display:inline-block;padding:7px 14px;border-radius:999px;background:var(--krill);color:#2a0a05;font-weight:800;font-size:14px;text-decoration:none}
+.play:hover{filter:brightness(1.08)}
 
 nav{display:flex;gap:6px;background:rgba(2,12,22,.45);border:1px solid var(--line);border-radius:999px;padding:5px;overflow-x:auto}
 nav a{flex:1;text-align:center;white-space:nowrap;padding:9px 14px;border-radius:999px;color:var(--muted);text-decoration:none;font-weight:700;font-size:14px}
@@ -178,11 +180,12 @@ footer{color:#5f8299;font-size:12px;text-align:center}
   <header>
     <div class="brand">
       <h1>Krill<b>board</b></h1>
-      <p id="subtitle">Daily Dive standings for Srikar, Armaan, Liv, Niha &amp; Mistry</p>
+      <p>Daily Dive standings</p>
     </div>
     <div class="clock" aria-live="polite">
       <span class="dive" id="clockDive">Dive #—</span>
       <span class="left" id="clockLeft">&nbsp;</span>
+      <a class="play" href="https://krillion.io/" target="_blank" rel="noopener">Play today's Krillion ↗</a>
     </div>
   </header>
   <nav aria-label="Pages">
@@ -478,7 +481,7 @@ function viewToday(c) {
   <div class="grid2">
     <section class="card" aria-labelledby="logH">
       <h2 id="logH">Log your dive</h2>
-      <p class="sub">Pick your name, then paste the share text straight from Krillion.</p>
+      <p class="sub">Pick your name, then paste the share text straight from <a href="https://krillion.io/" target="_blank" rel="noopener" style="color:var(--glow)">Krillion</a>.</p>
       <div class="chips" role="group" aria-label="Who are you?">${chips}</div>${addForm}
       ${state.passNeeded ? `<label for="pass" class="sub" style="display:block;margin:0 0 6px">Group passcode</label><input id="pass" type="password" autocomplete="off" value="${esc(state.pass)}" style="width:100%;margin-bottom:12px;font:inherit;font-size:16px;color:var(--ink);background:rgba(2,12,22,.55);border:1px solid var(--line);border-radius:10px;padding:8px 10px">` : ""}
       <label for="paste" class="sub" style="display:block;margin:0 0 6px">Your Krillion share</label>
@@ -573,7 +576,6 @@ function render() {
   const R = roster();
   const c = compute(ds.dives, ds.cd, R);
   c.cd = ds.cd;
-  $("#subtitle").textContent = `Daily Dive standings for ${namesList(R.map(p => p.name))}`;
   const v = currentView();
   document.querySelectorAll("nav a").forEach(a => { if (a.dataset.view === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
   let note = "";
